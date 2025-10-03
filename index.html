@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Visualizador Interactivo de la Ley de los Grandes Números</title>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <!-- MathJax -->
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet"/>
+
+    <style>
+        :root{
+            --bg-color: #f8f9fa;
+            --surface-color: #ffffff;
+            --text-color: #212529;
+            --text-muted-color: #6c757d;
+            --border-color: #dee2e6;
+            --info-bg-color: #e9f3ff;
+
+            --expected-value-color: #dc3545;
+            --chart-color-1: #0d6efd;
+            --chart-color-2: #198754;
+            --chart-color-3: #6f42c1;
+            --chart-color-4: #fd7e14;
+        }
+        html{ scroll-behavior: smooth; }
+        body{
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.7;
+            padding: 2rem;
+            font-size: 16px;
+        }
+        .container{ max-width: 1400px; margin: 0 auto; }
+        header{ text-align: center; margin-bottom: 2rem; }
+        header h1{ font-size: 2.4rem; font-weight: 700; color: var(--chart-color-1); }
+        header p{ max-width: 800px; margin: .5rem auto 0; color: var(--text-muted-color); }
+
+        .theory-box{
+            background-color: var(--info-bg-color);
+            border-left: 5px solid var(--chart-color-1);
+            border-radius: 8px;
+            padding: 1.5rem 2rem;
+            margin: 0 auto 3rem auto;
+            max-width: 950px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .controls-panel{
+            background-color: var(--surface-color);
+            padding: 1.2rem 1.4rem;
+            border-radius: 12px;
+            margin-bottom: 2.5rem;
+            display:flex;
+            flex-wrap:wrap;
+            gap:1.25rem;
+            align-items:center;
+            justify-content:center;
+            border:1px solid var(--border-color);
+            box-shadow:0 4px 18px rgba(0,0,0,0.06);
+        }
+        .control-group{ display:flex; align-items:center; gap:.75rem; }
+        .control-group label{ font-weight:500; color:var(--text-color); }
+        input[type="range"]{ -webkit-appearance:none; width:220px; height:8px; background:#e9ecef; border-radius:5px; }
+        input[type="range"]::-webkit-slider-thumb{ -webkit-appearance:none; width:18px; height:18px; background:var(--chart-color-1); border-radius:50%; cursor:pointer; }
+        #numTrialsValue{ font-weight:700; color:var(--chart-color-1); min-width:56px; text-align:right; }
+
+        #simulateBtn{
+            padding:.7rem 1.4rem; font-weight:700; color:#fff; background-color:var(--chart-color-1);
+            border:none; border-radius:8px; cursor:pointer;
+        }
+        #simulateBtn[disabled]{ background-color:#6c757d; cursor:not-allowed; }
+
+        .spinner{ width:16px; height:16px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin 1s linear infinite; display:inline-block; vertical-align:middle; }
+        @keyframes spin{ to{ transform:rotate(360deg); } }
+
+        .experiments-grid{ display:grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap:1.6rem; }
+
+        .card{ background:var(--surface-color); border-radius:12px; padding:1rem; border:1px solid var(--border-color); box-shadow:0 6px 20px rgba(0,0,0,0.06); display:flex; flex-direction:column; min-height:360px; }
+        .card-header h2{ margin:0 0 .4rem 0; }
+        .card-header .description{ color:var(--text-muted-color); margin-bottom:.6rem; }
+        .chart-container{ position:relative; flex-grow:1; min-height:260px; }
+        .final-average{ text-align:center; margin-top:1rem; padding-top:1rem; border-top:1px dashed var(--border-color); font-size:1.05rem; }
+        .final-average span{ font-weight:700; }
+        footer{ text-align:center; margin-top:2.5rem; padding-top:1.5rem; border-top:1px solid var(--border-color); color:var(--text-muted-color); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Visualizador Interactivo de la Ley de los Grandes Números (LGN)</h1>
+            <p>Una herramienta para explorar cómo los promedios de experimentos aleatorios convergen a sus valores esperados.</p>
+        </header>
+
+        <section class="theory-box" aria-label="Teoría">
+            <h3>El Teorema Fundamental</h3>
+            <p>La Ley de los Grandes Números ... (texto original). </p>
+            <p style="text-align:center; font-size:1.1rem;">
+                \[\bar{X}_n = \frac{1}{n}\sum_{i=1}^{n}X_i \quad \xrightarrow{p} \quad \mu \quad \text{cuando} \quad n \to \infty\]
+            </p>
+        </section>
+
+        <section class="controls-panel" aria-label="Controles">
+            <div class="control-group">
+                <label for="numTrials">Número de Simulaciones:</label>
+                <input type="range" id="numTrials" min="10" max="20000" step="10" value="2000" />
+                <span id="numTrialsValue" aria-live="polite">2000</span>
+            </div>
+
+            <div class="control-group">
+                <input type="checkbox" id="toggleExpected" checked />
+                <label for="toggleExpected">Mostrar Valor Esperado</label>
+            </div>
+
+            <div class="control-group">
+                <button id="simulateBtn" type="button">Lanzar Simulación</button>
+            </div>
+        </section>
+
+        <section class="experiments-grid" aria-label="Experimentos">
+            <!-- Coin -->
+            <article class="card">
+                <div class="card-header">
+                    <h2 style="color:var(--chart-color-1);">1. Lanzamiento de Moneda</h2>
+                    <p class="description">Moneda justa (1 = cara, 0 = cruz).</p>
+                    <p class="expected-value">Valor esperado: \(E[X]=0.5\)</p>
+                </div>
+                <div class="chart-container"><canvas id="coinChart" role="img" aria-label="Gráfico moneda"></canvas></div>
+                <div class="final-average" id="coinFinalAvg" aria-live="polite"></div>
+            </article>
+
+            <!-- Dice -->
+            <article class="card">
+                <div class="card-header">
+                    <h2 style="color:var(--chart-color-2);">2. Lanzamiento de Dado (6 caras)</h2>
+                    <p class="description">Dado justo 1..6. Promedio converge a 3.5.</p>
+                    <p class="expected-value">Valor esperado: \(E[X]=3.5\)</p>
+                </div>
+                <div class="chart-container"><canvas id="diceChart" role="img" aria-label="Gráfico dado"></canvas></div>
+                <div class="final-average" id="diceFinalAvg" aria-live="polite"></div>
+            </article>
+
+            <!-- Uniform -->
+            <article class="card">
+                <div class="card-header">
+                    <h2 style="color:var(--chart-color-3);">3. Distribución Uniforme [0,1]</h2>
+                    <p class="description">Números uniformes; promedio tiende a 0.5.</p>
+                    <p class="expected-value">Valor esperado: \(E[X]=0.5\)</p>
+                </div>
+                <div class="chart-container"><canvas id="uniformChart" role="img" aria-label="Gráfico uniforme"></canvas></div>
+                <div class="final-average" id="uniformFinalAvg" aria-live="polite"></div>
+            </article>
+
+            <!-- Bernoulli -->
+            <article class="card">
+                <div class="card-header">
+                    <h2 style="color:var(--chart-color-4);">4. Ensayo de Bernoulli (p=0.25)</h2>
+                    <p class="description">Proporción de éxitos converge a p.</p>
+                    <p class="expected-value">Valor esperado: \(E[X]=0.25\)</p>
+                </div>
+                <div class="chart-container"><canvas id="bernoulliChart" role="img" aria-label="Gráfico bernoulli"></canvas></div>
+                <div class="final-average" id="bernoulliFinalAvg" aria-live="polite"></div>
+            </article>
+        </section>
+
+        <footer>
+            <p>Visita mi web sites: <a href="https://sites.google.com/view/santiago-fiore/portada" target="_blank" rel="noopener noreferrer">santiago-fiore</a></p>
+        </footer>
+    </div>
+
+    <script>
+    (function(){
+        // --- Helpers para colores ---
+        function getCssVar(name){
+            return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || null;
+        }
+        // Convierte hex (#rrggbb) a rgba con alpha
+        function hexToRgba(hex, alpha = 1){
+            if(!hex) return `rgba(0,0,0,${alpha})`;
+            hex = hex.replace('#','');
+            if(hex.length === 3) hex = hex.split('').map(ch=>ch+ch).join('');
+            const r = parseInt(hex.substring(0,2),16);
+            const g = parseInt(hex.substring(2,4),16);
+            const b = parseInt(hex.substring(4,6),16);
+            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        }
+        // Si la variable css es un color sólido (hex o rgb), retorna rgba opcional
+        function cssVarToRgba(varName, alpha = 1){
+            const val = getCssVar(varName);
+            if(!val) return `rgba(0,0,0,${alpha})`;
+            // si ya es rgb/rgba
+            if(val.startsWith('rgb')) {
+                if(alpha === 1) return val;
+                // convertir rgb(...) a rgba(...)
+                return val.replace('rgb','rgba').replace(')', `, ${alpha})`);
+            }
+            // si es hex (#...)
+            if(val.startsWith('#')) return hexToRgba(val, alpha);
+            // fallback: intentar usar tal cual y append alpha (no garantizado)
+            return val;
+        }
+
+        // --- DOM elements ---
+        const numTrialsSlider = document.getElementById('numTrials');
+        const numTrialsValue = document.getElementById('numTrialsValue');
+        const simulateBtn = document.getElementById('simulateBtn');
+        const toggleExpected = document.getElementById('toggleExpected');
+
+        const charts = {};
+
+        // actualizar visual del valor slider
+        numTrialsSlider.addEventListener('input', () => { numTrialsValue.textContent = numTrialsSlider.value; });
+
+        simulateBtn.addEventListener('click', runAllSimulations);
+        toggleExpected.addEventListener('change', toggleExpectedValueVisibility);
+
+        // Chart.js defaults: usar colores computados (no variables literales)
+        Chart.defaults.font.family = getCssVar('--font-family') || "'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial";
+        Chart.defaults.color = getCssVar('--text-muted-color') || '#6c757d';
+
+        // --- Simulaciones ---
+        function simulateCoinFlips(n){
+            let heads = 0;
+            const data = new Array(n);
+            for(let i=1;i<=n;i++){
+                if(Math.random() < 0.5) heads++;
+                data[i-1] = heads / i;
+            }
+            return data;
+        }
+        function simulateDiceRolls(n){
+            let sum=0; const data = new Array(n);
+            for(let i=1;i<=n;i++){
+                const roll = Math.floor(Math.random()*6) + 1;
+                sum += roll;
+                data[i-1] = sum / i;
+            }
+            return data;
+        }
+        function simulateUniform(n){
+            let sum=0; const data = new Array(n);
+            for(let i=1;i<=n;i++){
+                sum += Math.random();
+                data[i-1] = sum / i;
+            }
+            return data;
+        }
+        function simulateBernoulli(n, p = 0.25){
+            let successes = 0; const data = new Array(n);
+            for(let i=1;i<=n;i++){
+                if(Math.random() < p) successes++;
+                data[i-1] = successes / i;
+            }
+            return data;
+        }
+
+        // Renderizado de gráfico con muestreo
+        function renderChart(canvasId, data, expectedValue, cssVarColorName, finalAvgId, xAxisLabel, yAxisLabel){
+            // destruir si existe
+            if(charts[canvasId]) { try { charts[canvasId].destroy(); } catch(e){} }
+
+            const canvas = document.getElementById(canvasId);
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+
+            // validaciones
+            if(!Array.isArray(data) || data.length === 0) {
+                document.getElementById(finalAvgId).innerHTML = 'Sin datos';
+                return;
+            }
+
+            // muestreo para rendimiento
+            const MAX_POINTS = 2000;
+            let sampledData = data;
+            let sampledLabels = data.map((_,i) => i+1);
+
+            if(data.length > MAX_POINTS){
+                sampledData = [];
+                sampledLabels = [];
+                const step = Math.ceil(data.length / MAX_POINTS); // CEIL evita step 0
+                for(let i=0; i < data.length; i += step){
+                    sampledData.push(data[i]);
+                    sampledLabels.push(i+1);
+                }
+                // asegurar incluir el último
+                if(sampledLabels[sampledLabels.length-1] !== data.length){
+                    sampledData.push(data[data.length - 1]);
+                    sampledLabels.push(data.length);
+                }
+            }
+
+            // obtener color computado y fondo semitransparente
+            const lineColor = cssVarToRgba(cssVarColorName, 1);
+            const fillColor = cssVarToRgba(cssVarColorName, 0.12);
+            const expectedColor = cssVarToRgba('--expected-value-color', 1);
+
+            charts[canvasId] = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: sampledLabels,
+                    datasets: [
+                        {
+                            label: 'Promedio empírico',
+                            data: sampledData,
+                            borderColor: lineColor,
+                            backgroundColor: fillColor,
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            tension: 0.2,
+                            fill: false
+                        },
+                        {
+                            label: 'Valor esperado teórico',
+                            data: new Array(sampledData.length).fill(expectedValue),
+                            borderColor: expectedColor,
+                            borderWidth: 2.5,
+                            borderDash: [6,6],
+                            pointRadius: 0,
+                            fill: false,
+                            hidden: !toggleExpected.checked
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: { duration: 0 },
+                    scales: {
+                        x: { title: { display: true, text: xAxisLabel, font: { size: 13 } } },
+                        y: { title: { display: true, text: yAxisLabel, font: { size: 13 } } }
+                    },
+                    plugins: {
+                        tooltip: { mode: 'index', intersect: false },
+                        legend: { position: 'top', labels: { usePointStyle: true } }
+                    },
+                    interaction: { mode: 'nearest', axis: 'x', intersect: false }
+                }
+            });
+
+            // promedio final (usar el último valor real)
+            const finalValue = data[data.length - 1];
+            const colorPreview = cssVarToRgba(cssVarColorName, 1);
+            document.getElementById(finalAvgId).innerHTML = `Promedio final: <span style="color:${colorPreview}">${Number(finalValue).toFixed(4)}</span>`;
+        }
+
+        function toggleExpectedValueVisibility(){
+            const visible = toggleExpected.checked;
+            for(const id in charts){
+                if(!charts[id]) continue;
+                if(charts[id].data && charts[id].data.datasets && charts[id].data.datasets[1]){
+                    charts[id].data.datasets[1].hidden = !visible;
+                    charts[id].update();
+                }
+            }
+        }
+
+        function runAllSimulations(){
+            // deshabilitar botón y mostrar spinner
+            const n = parseInt(numTrialsSlider.value, 10);
+            if(!Number.isInteger(n) || n <= 0){
+                alert('El número de simulaciones debe ser un entero positivo.');
+                return;
+            }
+
+            simulateBtn.disabled = true;
+            simulateBtn.innerHTML = 'Simulando... <span class="spinner" aria-hidden="true"></span>';
+
+            // pequeño timeout para permitir render del spinner
+            setTimeout(() => {
+                try{
+                    renderChart('coinChart', simulateCoinFlips(n), 0.5, '--chart-color-1', 'coinFinalAvg', 'Número de lanzamientos', 'Proporción de caras');
+                    renderChart('diceChart', simulateDiceRolls(n), 3.5, '--chart-color-2', 'diceFinalAvg', 'Número de lanzamientos', 'Promedio del resultado');
+                    renderChart('uniformChart', simulateUniform(n), 0.5, '--chart-color-3', 'uniformFinalAvg', 'Número de muestras', 'Promedio de la muestra');
+                    renderChart('bernoulliChart', simulateBernoulli(n, 0.25), 0.25, '--chart-color-4', 'bernoulliFinalAvg', 'Número de ensayos', 'Proporción de éxitos');
+                } catch(err){
+                    console.error('Error durante simulación:', err);
+                    alert('Ocurrió un error durante la simulación. Mira la consola para más detalles.');
+                } finally {
+                    simulateBtn.disabled = false;
+                    simulateBtn.innerHTML = 'Lanzar Simulación';
+                }
+            }, 10);
+        }
+
+        // correr al iniciar
+        runAllSimulations();
+    })();
+    </script>
+</body>
+</html>
