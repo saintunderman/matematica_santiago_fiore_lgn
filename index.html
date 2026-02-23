@@ -70,7 +70,7 @@
         }
         .control-group{ display:flex; align-items:center; gap:.75rem; }
         .control-group label{ font-weight:500; color:var(--text-color); }
-        input[type="range"]{ -webkit-appearance:none; width:220px; height:8px; background:#e9ecef; border-radius:5px; }
+        input[type="range"]{ -webkit-appearance:none; appearance:none; width:220px; height:8px; background:#e9ecef; border-radius:5px; }
         input[type="range"]::-webkit-slider-thumb{ -webkit-appearance:none; width:18px; height:18px; background:var(--chart-color-1); border-radius:50%; cursor:pointer; }
         #numTrialsValue{ font-weight:700; color:var(--chart-color-1); min-width:56px; text-align:right; }
 
@@ -103,16 +103,18 @@
 
         <section class="theory-box" aria-label="Teoría">
             <h3>El Teorema Fundamental</h3>
-            <p>La Ley de los Grandes Números ... (texto original). </p>
+            <p>La <strong>Ley de los Grandes Números (LGN)</strong> establece que al aumentar el tamaño de la muestra, el promedio de los resultados observados converge al valor esperado teórico. Este es uno de los teoremas fundamentales de la probabilidad y estadística, demostrando que las observaciones empíricas se acercan a la teoría con suficientes repeticiones.</p>
             <p style="text-align:center; font-size:1.1rem;">
                 \[\bar{X}_n = \frac{1}{n}\sum_{i=1}^{n}X_i \quad \xrightarrow{p} \quad \mu \quad \text{cuando} \quad n \to \infty\]
             </p>
+            <p style="margin-top:0.8rem;">donde \(\bar{X}_n\) es el promedio muestral, \(X_i\) son variables aleatorias independientes e idénticamente distribuidas (i.i.d.), \(\mu\) es el valor esperado, y \(\xrightarrow{p}\) denota convergencia en probabilidad (<strong>Ley Débil</strong>).</p>
+            <p style="margin-top:0.6rem; font-size:0.95rem; color:var(--text-muted-color);"><em>Nota técnica: Las trayectorias individuales que visualizas ilustran la <strong>Ley Fuerte</strong> (\(\xrightarrow{a.s.}\), convergencia casi segura), donde cada secuencia particular converge al valor esperado.</em></p>
         </section>
 
         <section class="controls-panel" aria-label="Controles">
             <div class="control-group">
                 <label for="numTrials">Número de Simulaciones:</label>
-                <input type="range" id="numTrials" min="10" max="20000" step="10" value="2000" />
+                <input type="range" id="numTrials" min="10" max="100000" step="100" value="2000" />
                 <span id="numTrialsValue" aria-live="polite">2000</span>
             </div>
 
@@ -185,8 +187,10 @@
         }
         // Convierte hex (#rrggbb) a rgba con alpha
         function hexToRgba(hex, alpha = 1){
-            if(!hex) return `rgba(0,0,0,${alpha})`;
-            hex = hex.replace('#','');
+            if(!hex || typeof hex !== 'string') return `rgba(0,0,0,${alpha})`;
+            hex = hex.trim().replace('#','');
+            // Validar que solo contenga caracteres hexadecimales
+            if(!/^[0-9A-Fa-f]{3}$|^[0-9A-Fa-f]{6}$/.test(hex)) return `rgba(0,0,0,${alpha})`;
             if(hex.length === 3) hex = hex.split('').map(ch=>ch+ch).join('');
             const r = parseInt(hex.substring(0,2),16);
             const g = parseInt(hex.substring(2,4),16);
@@ -197,16 +201,24 @@
         function cssVarToRgba(varName, alpha = 1){
             const val = getCssVar(varName);
             if(!val) return `rgba(0,0,0,${alpha})`;
-            // si ya es rgb/rgba
-            if(val.startsWith('rgb')) {
-                if(alpha === 1) return val;
-                // convertir rgb(...) a rgba(...)
-                return val.replace('rgb','rgba').replace(')', `, ${alpha})`);
+            const trimmed = val.trim();
+            
+            // si ya es rgba
+            if(trimmed.startsWith('rgba')){
+                return alpha === 1 ? trimmed : trimmed.replace(/[\d\.]+\s*\)\s*$/, `${alpha})`);
+            }
+            // si es rgb
+            if(trimmed.startsWith('rgb')){
+                const match = trimmed.match(/rgb\s*\(\s*([^)]+)\s*\)/);
+                if(match){
+                    const values = match[1].trim();
+                    return `rgba(${values}, ${alpha})`;
+                }
             }
             // si es hex (#...)
-            if(val.startsWith('#')) return hexToRgba(val, alpha);
-            // fallback: intentar usar tal cual y append alpha (no garantizado)
-            return val;
+            if(trimmed.startsWith('#')) return hexToRgba(trimmed, alpha);
+            // fallback
+            return `rgba(0,0,0,${alpha})`;
         }
 
         // --- DOM elements ---
@@ -216,6 +228,7 @@
         const toggleExpected = document.getElementById('toggleExpected');
 
         const charts = {};
+        const colorCache = {}; // Caché de colores para evitar recálculos
 
         // actualizar visual del valor slider
         numTrialsSlider.addEventListener('input', () => { numTrialsValue.textContent = numTrialsSlider.value; });
@@ -227,129 +240,160 @@
         Chart.defaults.font.family = getCssVar('--font-family') || "'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial";
         Chart.defaults.color = getCssVar('--text-muted-color') || '#6c757d';
 
-        // --- Simulaciones ---
-        function simulateCoinFlips(n){
-            let heads = 0;
-            const data = new Array(n);
-            for(let i=1;i<=n;i++){
-                if(Math.random() < 0.5) heads++;
-                data[i-1] = heads / i;
+        // --- Simulación optimizada con muestreo al vuelo ---
+        // Esta versión muestrea mientras calcula, reduciendo memoria de O(n) a O(MAX_POINTS)
+        // Ideal para n grandes (ej: 1,000,000) donde guardar todos los puntos sería ineficiente
+        function runSimulation(n, sampleFunction, maxPoints = 2000){
+            if(!Number.isInteger(n) || n <= 0) throw new Error('n debe ser un entero positivo');
+            
+            // Si n es pequeño, guardamos todos los puntos
+            if(n <= maxPoints){
+                const data = new Array(n);
+                let accumulator = 0;
+                for(let i = 1; i <= n; i++){
+                    accumulator += sampleFunction();
+                    data[i-1] = accumulator / i;
+                }
+                return { data, labels: data.map((_, i) => i + 1) };
             }
-            return data;
+            
+            // Para n grande: muestreo estratificado al vuelo
+            const sampledData = [];
+            const sampledLabels = [];
+            const step = Math.floor(n / maxPoints);
+            
+            let accumulator = 0;
+            let nextSamplePoint = step;
+            
+            for(let i = 1; i <= n; i++){
+                accumulator += sampleFunction();
+                
+                // Guardamos el punto si:
+                // 1. Es un múltiplo del paso de muestreo
+                // 2. Es el último punto (crucial para ver la convergencia final)
+                if(i === nextSamplePoint || i === n){
+                    sampledData.push(accumulator / i);
+                    sampledLabels.push(i);
+                    nextSamplePoint += step;
+                }
+            }
+            
+            return { data: sampledData, labels: sampledLabels };
+        }
+        
+        // Nota sobre Math.random():
+        // Usamos el generador pseudoaleatorio del navegador (implementación específica de cada motor JS).
+        // Para propósitos educativos es más que suficiente. En simulaciones de Monte Carlo profesionales
+        // se usarían generadores como Mersenne Twister, pero para la LGN esto es adecuado.
+        
+        // --- Simulaciones específicas ---
+        function simulateCoinFlips(n){
+            return runSimulation(n, () => Math.random() < 0.5 ? 1 : 0);
         }
         function simulateDiceRolls(n){
-            let sum=0; const data = new Array(n);
-            for(let i=1;i<=n;i++){
-                const roll = Math.floor(Math.random()*6) + 1;
-                sum += roll;
-                data[i-1] = sum / i;
-            }
-            return data;
+            return runSimulation(n, () => Math.floor(Math.random() * 6) + 1);
         }
         function simulateUniform(n){
-            let sum=0; const data = new Array(n);
-            for(let i=1;i<=n;i++){
-                sum += Math.random();
-                data[i-1] = sum / i;
-            }
-            return data;
+            return runSimulation(n, () => Math.random());
         }
         function simulateBernoulli(n, p = 0.25){
-            let successes = 0; const data = new Array(n);
-            for(let i=1;i<=n;i++){
-                if(Math.random() < p) successes++;
-                data[i-1] = successes / i;
-            }
-            return data;
+            if(p < 0 || p > 1) throw new Error('p debe estar entre 0 y 1');
+            return runSimulation(n, () => Math.random() < p ? 1 : 0);
         }
 
-        // Renderizado de gráfico con muestreo
-        function renderChart(canvasId, data, expectedValue, cssVarColorName, finalAvgId, xAxisLabel, yAxisLabel){
-            // destruir si existe
-            if(charts[canvasId]) { try { charts[canvasId].destroy(); } catch(e){} }
+        // Función auxiliar para obtener colores con caché
+        function getCachedColor(varName, alpha = 1){
+            const cacheKey = `${varName}_${alpha}`;
+            if(!colorCache[cacheKey]){
+                colorCache[cacheKey] = cssVarToRgba(varName, alpha);
+            }
+            return colorCache[cacheKey];
+        }
 
+        // Renderizado de gráfico optimizado
+        function renderChart(canvasId, result, expectedValue, cssVarColorName, finalAvgId, xAxisLabel, yAxisLabel){
             const canvas = document.getElementById(canvasId);
             if(!canvas) return;
-            const ctx = canvas.getContext('2d');
-
-            // validaciones
-            if(!Array.isArray(data) || data.length === 0) {
+            
+            // Validaciones
+            if(!result || !Array.isArray(result.data) || result.data.length === 0) {
                 document.getElementById(finalAvgId).innerHTML = 'Sin datos';
                 return;
             }
 
-            // muestreo para rendimiento
-            const MAX_POINTS = 2000;
-            let sampledData = data;
-            let sampledLabels = data.map((_,i) => i+1);
+            const { data, labels } = result;
+            
+            // Obtener colores (con caché)
+            const lineColor = getCachedColor(cssVarColorName, 1);
+            const fillColor = getCachedColor(cssVarColorName, 0.12);
+            const expectedColor = getCachedColor('--expected-value-color', 1);
 
-            if(data.length > MAX_POINTS){
-                sampledData = [];
-                sampledLabels = [];
-                const step = Math.ceil(data.length / MAX_POINTS); // CEIL evita step 0
-                for(let i=0; i < data.length; i += step){
-                    sampledData.push(data[i]);
-                    sampledLabels.push(i+1);
-                }
-                // asegurar incluir el último
-                if(sampledLabels[sampledLabels.length-1] !== data.length){
-                    sampledData.push(data[data.length - 1]);
-                    sampledLabels.push(data.length);
+            // Datos para los datasets
+            const chartData = {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Promedio empírico',
+                        data: data,
+                        borderColor: lineColor,
+                        backgroundColor: fillColor,
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        tension: 0.2,
+                        fill: false
+                    },
+                    {
+                        label: 'Valor esperado teórico',
+                        data: new Array(data.length).fill(expectedValue),
+                        borderColor: expectedColor,
+                        borderWidth: 2.5,
+                        borderDash: [6,6],
+                        pointRadius: 0,
+                        fill: false,
+                        hidden: !toggleExpected.checked
+                    }
+                ]
+            };
+
+            // Si el chart ya existe, actualizamos los datos (más eficiente que destruir)
+            if(charts[canvasId]){
+                try {
+                    charts[canvasId].data = chartData;
+                    charts[canvasId].update('none'); // 'none' = sin animación para mejor performance
+                } catch(e){
+                    console.warn(`Error al actualizar chart ${canvasId}:`, e);
+                    // Si falla el update, destruir y recrear
+                    charts[canvasId].destroy();
+                    charts[canvasId] = null;
                 }
             }
-
-            // obtener color computado y fondo semitransparente
-            const lineColor = cssVarToRgba(cssVarColorName, 1);
-            const fillColor = cssVarToRgba(cssVarColorName, 0.12);
-            const expectedColor = cssVarToRgba('--expected-value-color', 1);
-
-            charts[canvasId] = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: sampledLabels,
-                    datasets: [
-                        {
-                            label: 'Promedio empírico',
-                            data: sampledData,
-                            borderColor: lineColor,
-                            backgroundColor: fillColor,
-                            borderWidth: 2,
-                            pointRadius: 0,
-                            tension: 0.2,
-                            fill: false
+            
+            // Crear nuevo chart si no existe
+            if(!charts[canvasId]){
+                const ctx = canvas.getContext('2d');
+                charts[canvasId] = new Chart(ctx, {
+                    type: 'line',
+                    data: chartData,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: { duration: 0 },
+                        scales: {
+                            x: { title: { display: true, text: xAxisLabel, font: { size: 13 } } },
+                            y: { title: { display: true, text: yAxisLabel, font: { size: 13 } } }
                         },
-                        {
-                            label: 'Valor esperado teórico',
-                            data: new Array(sampledData.length).fill(expectedValue),
-                            borderColor: expectedColor,
-                            borderWidth: 2.5,
-                            borderDash: [6,6],
-                            pointRadius: 0,
-                            fill: false,
-                            hidden: !toggleExpected.checked
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: { duration: 0 },
-                    scales: {
-                        x: { title: { display: true, text: xAxisLabel, font: { size: 13 } } },
-                        y: { title: { display: true, text: yAxisLabel, font: { size: 13 } } }
-                    },
-                    plugins: {
-                        tooltip: { mode: 'index', intersect: false },
-                        legend: { position: 'top', labels: { usePointStyle: true } }
-                    },
-                    interaction: { mode: 'nearest', axis: 'x', intersect: false }
-                }
-            });
+                        plugins: {
+                            tooltip: { mode: 'index', intersect: false },
+                            legend: { position: 'top', labels: { usePointStyle: true } }
+                        },
+                        interaction: { mode: 'nearest', axis: 'x', intersect: false }
+                    }
+                });
+            }
 
-            // promedio final (usar el último valor real)
+            // Promedio final (usar el último valor real)
             const finalValue = data[data.length - 1];
-            const colorPreview = cssVarToRgba(cssVarColorName, 1);
-            document.getElementById(finalAvgId).innerHTML = `Promedio final: <span style="color:${colorPreview}">${Number(finalValue).toFixed(4)}</span>`;
+            document.getElementById(finalAvgId).innerHTML = `Promedio final: <span style="color:${lineColor}">${Number(finalValue).toFixed(4)}</span>`;
         }
 
         function toggleExpectedValueVisibility(){
@@ -364,31 +408,37 @@
         }
 
         function runAllSimulations(){
-            // deshabilitar botón y mostrar spinner
+            // Validación robusta de entrada
             const n = parseInt(numTrialsSlider.value, 10);
-            if(!Number.isInteger(n) || n <= 0){
-                alert('El número de simulaciones debe ser un entero positivo.');
+            const minTrials = parseInt(numTrialsSlider.min, 10);
+            const maxTrials = parseInt(numTrialsSlider.max, 10);
+            
+            if(!Number.isInteger(n) || n < minTrials || n > maxTrials){
+                alert(`El número de simulaciones debe estar entre ${minTrials} y ${maxTrials}.`);
                 return;
             }
 
             simulateBtn.disabled = true;
             simulateBtn.innerHTML = 'Simulando... <span class="spinner" aria-hidden="true"></span>';
 
-            // pequeño timeout para permitir render del spinner
-            setTimeout(() => {
-                try{
-                    renderChart('coinChart', simulateCoinFlips(n), 0.5, '--chart-color-1', 'coinFinalAvg', 'Número de lanzamientos', 'Proporción de caras');
-                    renderChart('diceChart', simulateDiceRolls(n), 3.5, '--chart-color-2', 'diceFinalAvg', 'Número de lanzamientos', 'Promedio del resultado');
-                    renderChart('uniformChart', simulateUniform(n), 0.5, '--chart-color-3', 'uniformFinalAvg', 'Número de muestras', 'Promedio de la muestra');
-                    renderChart('bernoulliChart', simulateBernoulli(n, 0.25), 0.25, '--chart-color-4', 'bernoulliFinalAvg', 'Número de ensayos', 'Proporción de éxitos');
-                } catch(err){
-                    console.error('Error durante simulación:', err);
-                    alert('Ocurrió un error durante la simulación. Mira la consola para más detalles.');
-                } finally {
-                    simulateBtn.disabled = false;
-                    simulateBtn.innerHTML = 'Lanzar Simulación';
-                }
-            }, 10);
+            // Usar requestAnimationFrame para mejor rendimiento
+            requestAnimationFrame(() => {
+                setTimeout(() => {
+                    try{
+                        renderChart('coinChart', simulateCoinFlips(n), 0.5, '--chart-color-1', 'coinFinalAvg', 'Número de lanzamientos', 'Proporción de caras');
+                        renderChart('diceChart', simulateDiceRolls(n), 3.5, '--chart-color-2', 'diceFinalAvg', 'Número de lanzamientos', 'Promedio del resultado');
+                        renderChart('uniformChart', simulateUniform(n), 0.5, '--chart-color-3', 'uniformFinalAvg', 'Número de muestras', 'Promedio de la muestra');
+                        renderChart('bernoulliChart', simulateBernoulli(n, 0.25), 0.25, '--chart-color-4', 'bernoulliFinalAvg', 'Número de ensayos', 'Proporción de éxitos');
+                    } catch(err){
+                        console.error('Error durante simulación:', err);
+                        const errorMsg = err.message || 'Error desconocido';
+                        alert(`Error durante la simulación: ${errorMsg}. Verifica la consola para más detalles.`);
+                    } finally {
+                        simulateBtn.disabled = false;
+                        simulateBtn.innerHTML = 'Lanzar Simulación';
+                    }
+                }, 10);
+            });
         }
 
         // correr al iniciar
