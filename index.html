@@ -70,9 +70,8 @@
         }
         .control-group{ display:flex; align-items:center; gap:.75rem; }
         .control-group label{ font-weight:500; color:var(--text-color); }
-        input[type="range"]{ -webkit-appearance:none; appearance:none; width:220px; height:8px; background:#e9ecef; border-radius:5px; }
-        input[type="range"]::-webkit-slider-thumb{ -webkit-appearance:none; width:18px; height:18px; background:var(--chart-color-1); border-radius:50%; cursor:pointer; }
-        #numTrialsValue{ font-weight:700; color:var(--chart-color-1); min-width:56px; text-align:right; }
+        input[type="number"]{ width:150px; padding:.5rem; border:2px solid var(--border-color); border-radius:6px; font-size:1rem; font-weight:600; color:var(--chart-color-1); text-align:center; }
+        input[type="number"]:focus{ outline:none; border-color:var(--chart-color-1); }
 
         #simulateBtn{
             padding:.7rem 1.4rem; font-weight:700; color:#fff; background-color:var(--chart-color-1);
@@ -83,9 +82,15 @@
         .spinner{ width:16px; height:16px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin 1s linear infinite; display:inline-block; vertical-align:middle; }
         @keyframes spin{ to{ transform:rotate(360deg); } }
 
+        .experiment-selector{ display:flex; flex-wrap:wrap; gap:1rem; justify-content:center; margin-bottom:2.5rem; }
+        .experiment-btn{ padding:.8rem 1.5rem; font-weight:600; color:var(--text-color); background-color:var(--surface-color); border:2px solid var(--border-color); border-radius:8px; cursor:pointer; transition:all 0.2s ease; box-shadow:0 2px 8px rgba(0,0,0,0.06); }
+        .experiment-btn:hover{ transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,0.12); }
+        .experiment-btn.active{ border-color:var(--chart-color-1); background-color:var(--chart-color-1); color:#fff; }
+
         .experiments-grid{ display:grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap:1.6rem; }
 
         .card{ background:var(--surface-color); border-radius:12px; padding:1rem; border:1px solid var(--border-color); box-shadow:0 6px 20px rgba(0,0,0,0.06); display:flex; flex-direction:column; min-height:360px; }
+        .card.hidden{ display:none; }
         .card-header h2{ margin:0 0 .4rem 0; }
         .card-header .description{ color:var(--text-muted-color); margin-bottom:.6rem; }
         .chart-container{ position:relative; flex-grow:1; min-height:260px; }
@@ -102,20 +107,13 @@
         </header>
 
         <section class="theory-box" aria-label="Teoría">
-            <h3>El Teorema Fundamental</h3>
             <p>La <strong>Ley de los Grandes Números (LGN)</strong> establece que al aumentar el tamaño de la muestra, el promedio de los resultados observados converge al valor esperado teórico. Este es uno de los teoremas fundamentales de la probabilidad y estadística, demostrando que las observaciones empíricas se acercan a la teoría con suficientes repeticiones.</p>
-            <p style="text-align:center; font-size:1.1rem;">
-                \[\bar{X}_n = \frac{1}{n}\sum_{i=1}^{n}X_i \quad \xrightarrow{p} \quad \mu \quad \text{cuando} \quad n \to \infty\]
-            </p>
-            <p style="margin-top:0.8rem;">donde \(\bar{X}_n\) es el promedio muestral, \(X_i\) son variables aleatorias independientes e idénticamente distribuidas (i.i.d.), \(\mu\) es el valor esperado, y \(\xrightarrow{p}\) denota convergencia en probabilidad (<strong>Ley Débil</strong>).</p>
-            <p style="margin-top:0.6rem; font-size:0.95rem; color:var(--text-muted-color);"><em>Nota técnica: Las trayectorias individuales que visualizas ilustran la <strong>Ley Fuerte</strong> (\(\xrightarrow{a.s.}\), convergencia casi segura), donde cada secuencia particular converge al valor esperado.</em></p>
         </section>
 
         <section class="controls-panel" aria-label="Controles">
             <div class="control-group">
                 <label for="numTrials">Número de Simulaciones:</label>
-                <input type="range" id="numTrials" min="10" max="100000" step="100" value="2000" />
-                <span id="numTrialsValue" aria-live="polite">2000</span>
+                <input type="number" id="numTrials" min="10" max="100000" step="100" value="2000" />
             </div>
 
             <div class="control-group">
@@ -128,9 +126,16 @@
             </div>
         </section>
 
+        <section class="experiment-selector" aria-label="Seleccionar Experimento">
+            <button class="experiment-btn active" data-experiment="coin" type="button">🪙 Lanzamiento de Moneda</button>
+            <button class="experiment-btn" data-experiment="dice" type="button">🎲 Dado (6 caras)</button>
+            <button class="experiment-btn" data-experiment="uniform" type="button">📊 Distribución Uniforme</button>
+            <button class="experiment-btn" data-experiment="bernoulli" type="button">🎯 Ensayo de Bernoulli</button>
+        </section>
+
         <section class="experiments-grid" aria-label="Experimentos">
             <!-- Coin -->
-            <article class="card">
+            <article class="card" data-experiment="coin">
                 <div class="card-header">
                     <h2 style="color:var(--chart-color-1);">1. Lanzamiento de Moneda</h2>
                     <p class="description">Moneda justa (1 = cara, 0 = cruz).</p>
@@ -141,7 +146,7 @@
             </article>
 
             <!-- Dice -->
-            <article class="card">
+            <article class="card hidden" data-experiment="dice">
                 <div class="card-header">
                     <h2 style="color:var(--chart-color-2);">2. Lanzamiento de Dado (6 caras)</h2>
                     <p class="description">Dado justo 1..6. Promedio converge a 3.5.</p>
@@ -152,7 +157,7 @@
             </article>
 
             <!-- Uniform -->
-            <article class="card">
+            <article class="card hidden" data-experiment="uniform">
                 <div class="card-header">
                     <h2 style="color:var(--chart-color-3);">3. Distribución Uniforme [0,1]</h2>
                     <p class="description">Números uniformes; promedio tiende a 0.5.</p>
@@ -163,7 +168,7 @@
             </article>
 
             <!-- Bernoulli -->
-            <article class="card">
+            <article class="card hidden" data-experiment="bernoulli">
                 <div class="card-header">
                     <h2 style="color:var(--chart-color-4);">4. Ensayo de Bernoulli (p=0.25)</h2>
                     <p class="description">Proporción de éxitos converge a p.</p>
@@ -175,7 +180,9 @@
         </section>
 
         <footer>
-            <p>Visita mi web sites: <a href="https://sites.google.com/view/santiago-fiore/portada" target="_blank" rel="noopener noreferrer">santiago-fiore</a></p>
+            <p><strong>Desarrollado por Matemática Santiago Fiore</strong></p>
+            <p>Recurso educativo para el estudio de la Ley de los Grandes Números</p>
+            <p><a href="https://sites.google.com/view/santiago-fiore/portada" target="_blank" rel="noopener noreferrer">Sitio Web</a></p>
         </footer>
     </div>
 
@@ -222,18 +229,55 @@
         }
 
         // --- DOM elements ---
-        const numTrialsSlider = document.getElementById('numTrials');
-        const numTrialsValue = document.getElementById('numTrialsValue');
+        const numTrialsInput = document.getElementById('numTrials');
         const simulateBtn = document.getElementById('simulateBtn');
         const toggleExpected = document.getElementById('toggleExpected');
+        const experimentBtns = document.querySelectorAll('.experiment-btn');
+        const experimentCards = document.querySelectorAll('.card[data-experiment]');
 
         const charts = {};
         const colorCache = {}; // Caché de colores para evitar recálculos
+        let currentExperiment = 'coin'; // Experimento activo por defecto
 
-        // actualizar visual del valor slider
-        numTrialsSlider.addEventListener('input', () => { numTrialsValue.textContent = numTrialsSlider.value; });
+        // Manejar selección de experimentos
+        experimentBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const experiment = btn.getAttribute('data-experiment');
+                if(experiment === currentExperiment) return;
+                
+                // Actualizar botones
+                experimentBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                // Actualizar cards (ocultar todos, mostrar solo el activo)
+                experimentCards.forEach(card => {
+                    if(card.getAttribute('data-experiment') === experiment){
+                        card.classList.remove('hidden');
+                    } else {
+                        card.classList.add('hidden');
+                    }
+                });
+                
+                currentExperiment = experiment;
+                
+                // Ejecutar simulación del nuevo experimento
+                runSimulation();
+            });
+        });
 
-        simulateBtn.addEventListener('click', runAllSimulations);
+        // Validación del campo numérico
+        numTrialsInput.addEventListener('blur', () => {
+            let val = parseInt(numTrialsInput.value, 10);
+            const min = parseInt(numTrialsInput.min, 10);
+            const max = parseInt(numTrialsInput.max, 10);
+            
+            if(isNaN(val) || val < min) val = min;
+            if(val > max) val = max;
+            
+            numTrialsInput.value = val;
+        });
+
+        simulateBtn.addEventListener('click', runSimulation);
         toggleExpected.addEventListener('change', toggleExpectedValueVisibility);
 
         // Chart.js defaults: usar colores computados (no variables literales)
@@ -243,7 +287,7 @@
         // --- Simulación optimizada con muestreo al vuelo ---
         // Esta versión muestrea mientras calcula, reduciendo memoria de O(n) a O(MAX_POINTS)
         // Ideal para n grandes (ej: 1,000,000) donde guardar todos los puntos sería ineficiente
-        function runSimulation(n, sampleFunction, maxPoints = 2000){
+        function generateSimulationData(n, sampleFunction, maxPoints = 2000){
             if(!Number.isInteger(n) || n <= 0) throw new Error('n debe ser un entero positivo');
             
             // Si n es pequeño, guardamos todos los puntos
@@ -285,20 +329,22 @@
         // Usamos el generador pseudoaleatorio del navegador (implementación específica de cada motor JS).
         // Para propósitos educativos es más que suficiente. En simulaciones de Monte Carlo profesionales
         // se usarían generadores como Mersenne Twister, pero para la LGN esto es adecuado.
+        // Nota técnica: Para aplicaciones criptográficas o distribuciones hiper-uniformes se usaría
+        // crypto.getRandomValues(), aunque es más lento y aquí no necesario.
         
         // --- Simulaciones específicas ---
         function simulateCoinFlips(n){
-            return runSimulation(n, () => Math.random() < 0.5 ? 1 : 0);
+            return generateSimulationData(n, () => Math.random() < 0.5 ? 1 : 0);
         }
         function simulateDiceRolls(n){
-            return runSimulation(n, () => Math.floor(Math.random() * 6) + 1);
+            return generateSimulationData(n, () => Math.floor(Math.random() * 6) + 1);
         }
         function simulateUniform(n){
-            return runSimulation(n, () => Math.random());
+            return generateSimulationData(n, () => Math.random());
         }
         function simulateBernoulli(n, p = 0.25){
             if(p < 0 || p > 1) throw new Error('p debe estar entre 0 y 1');
-            return runSimulation(n, () => Math.random() < p ? 1 : 0);
+            return generateSimulationData(n, () => Math.random() < p ? 1 : 0);
         }
 
         // Función auxiliar para obtener colores con caché
@@ -329,12 +375,14 @@
             const expectedColor = getCachedColor('--expected-value-color', 1);
 
             // Datos para los datasets
+            // Convertir a formato {x, y} para compatibilidad con eje linear
+            const dataPoints = data.map((y, i) => ({x: labels[i], y: y}));
+            
             const chartData = {
-                labels: labels,
                 datasets: [
                     {
                         label: 'Promedio empírico',
-                        data: data,
+                        data: dataPoints,
                         borderColor: lineColor,
                         backgroundColor: fillColor,
                         borderWidth: 2,
@@ -344,7 +392,8 @@
                     },
                     {
                         label: 'Valor esperado teórico',
-                        data: new Array(data.length).fill(expectedValue),
+                        // Optimización: solo 2 puntos necesarios para una línea recta horizontal
+                        data: [{x: labels[0], y: expectedValue}, {x: labels[labels.length - 1], y: expectedValue}],
                         borderColor: expectedColor,
                         borderWidth: 2.5,
                         borderDash: [6,6],
@@ -379,7 +428,10 @@
                         maintainAspectRatio: false,
                         animation: { duration: 0 },
                         scales: {
-                            x: { title: { display: true, text: xAxisLabel, font: { size: 13 } } },
+                            x: { 
+                                type: 'linear',
+                                title: { display: true, text: xAxisLabel, font: { size: 13 } } 
+                            },
                             y: { title: { display: true, text: yAxisLabel, font: { size: 13 } } }
                         },
                         plugins: {
@@ -407,14 +459,15 @@
             }
         }
 
-        function runAllSimulations(){
+        function runSimulation(){
             // Validación robusta de entrada
-            const n = parseInt(numTrialsSlider.value, 10);
-            const minTrials = parseInt(numTrialsSlider.min, 10);
-            const maxTrials = parseInt(numTrialsSlider.max, 10);
+            const n = parseInt(numTrialsInput.value, 10);
+            const minTrials = parseInt(numTrialsInput.min, 10);
+            const maxTrials = parseInt(numTrialsInput.max, 10);
             
             if(!Number.isInteger(n) || n < minTrials || n > maxTrials){
                 alert(`El número de simulaciones debe estar entre ${minTrials} y ${maxTrials}.`);
+                numTrialsInput.value = Math.min(Math.max(n || minTrials, minTrials), maxTrials);
                 return;
             }
 
@@ -425,10 +478,21 @@
             requestAnimationFrame(() => {
                 setTimeout(() => {
                     try{
-                        renderChart('coinChart', simulateCoinFlips(n), 0.5, '--chart-color-1', 'coinFinalAvg', 'Número de lanzamientos', 'Proporción de caras');
-                        renderChart('diceChart', simulateDiceRolls(n), 3.5, '--chart-color-2', 'diceFinalAvg', 'Número de lanzamientos', 'Promedio del resultado');
-                        renderChart('uniformChart', simulateUniform(n), 0.5, '--chart-color-3', 'uniformFinalAvg', 'Número de muestras', 'Promedio de la muestra');
-                        renderChart('bernoulliChart', simulateBernoulli(n, 0.25), 0.25, '--chart-color-4', 'bernoulliFinalAvg', 'Número de ensayos', 'Proporción de éxitos');
+                        // Ejecutar solo la simulación del experimento activo (performance optimizada)
+                        switch(currentExperiment){
+                            case 'coin':
+                                renderChart('coinChart', simulateCoinFlips(n), 0.5, '--chart-color-1', 'coinFinalAvg', 'Número de lanzamientos', 'Proporción de caras');
+                                break;
+                            case 'dice':
+                                renderChart('diceChart', simulateDiceRolls(n), 3.5, '--chart-color-2', 'diceFinalAvg', 'Número de lanzamientos', 'Promedio del resultado');
+                                break;
+                            case 'uniform':
+                                renderChart('uniformChart', simulateUniform(n), 0.5, '--chart-color-3', 'uniformFinalAvg', 'Número de muestras', 'Promedio de la muestra');
+                                break;
+                            case 'bernoulli':
+                                renderChart('bernoulliChart', simulateBernoulli(n, 0.25), 0.25, '--chart-color-4', 'bernoulliFinalAvg', 'Número de ensayos', 'Proporción de éxitos');
+                                break;
+                        }
                     } catch(err){
                         console.error('Error durante simulación:', err);
                         const errorMsg = err.message || 'Error desconocido';
@@ -441,8 +505,8 @@
             });
         }
 
-        // correr al iniciar
-        runAllSimulations();
+        // correr al iniciar (solo el experimento activo)
+        runSimulation();
     })();
     </script>
 </body>
