@@ -1,16 +1,6 @@
 # Simulador de la Ley de los Grandes Números
 
-Este proyecto es una herramienta educativa e interactiva diseñada para mostrar de manera empírica la **Ley de los Grandes Números** a través de la simulación de lanzamientos de dados. Permite visualizar cómo, a medida que aumenta el número de experimentos, la frecuencia relativa de los eventos converge hacia la probabilidad teórica.
-
-## Características Principales
-
-* **Simulación Estocástica:** Generación de lanzamientos de dados virtuales (1 a 6 caras) con resultados aleatorios procesados en tiempo real.
-* **Visualización Dinámica:** Incluye dos tipos de gráficos interactivos potenciados por **Chart.js**:
-    * **Frecuencias Absolutas:** Gráfico de barras que muestra cuántas veces ha salido cada cara del dado.
-    * **Convergencia de la Media:** Gráfico de líneas que ilustra cómo el promedio observado se estabiliza en el valor teórico ($3.5$) a medida que crecen los lanzamientos.
-* **Control de Parámetros:** El usuario puede definir la cantidad de lanzamientos por iteración (desde 1 hasta 10,000) y la velocidad de la animación.
-* **Panel de Estadísticas:** Resumen detallado que incluye el total de lanzamientos, el promedio actual y el error relativo respecto al valor esperado.
-* **Interfaz Responsiva:** Diseño moderno y funcional que se adapta a cualquier tamaño de pantalla.
+Este proyecto es una herramienta educativa e interactiva diseñada para mostrar de manera empírica la **Ley de los Grandes Números** a través de la simulación de distintos experimentos aleatorios. Permite visualizar cómo, a medida que aumenta el número de experimentos, la frecuencia relativa de los eventos converge hacia la probabilidad teórica.
 
 ## Tecnologías Utilizadas
 
@@ -18,12 +8,6 @@ Este proyecto es una herramienta educativa e interactiva diseñada para mostrar 
 * **Chart.js:** Biblioteca utilizada para el renderizado de gráficos estadísticos dinámicos.
 * **MathJax:** Integración de fórmulas matemáticas en LaTeX para explicar el fundamento teórico.
 * **HTML5 & CSS3:** Estructura y estilos visuales con una experiencia de usuario optimizada.
-
-## Cómo Funciona
-
-1.  **Configuración:** Selecciona cuántos lanzamientos quieres realizar en cada paso.
-2.  **Ejecución:** Haz clic en "Lanzar Dados" para iniciar la simulación o usa el modo automático para ver la progresión continua.
-3.  **Análisis:** Observa cómo la línea de la media se acerca a la línea punteada roja ($3.5$), validando el teorema estadístico.
 
 ## Fundamento Teórico
 
